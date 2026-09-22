@@ -1,0 +1,12 @@
+# Provider credentials. Copy ~/.local/share/opencode/auth.json by hand.
+auth.json
+**/*auth.json
+*.env
+.env*
+
+# Local session state in this workspace, not setup.
+/.omo/
+
+# Plugin install artifacts. Do not vendor these.
+node_modules/
+package-lock.json
