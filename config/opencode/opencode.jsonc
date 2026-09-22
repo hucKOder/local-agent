@@ -1,0 +1,11 @@
+{
+  "plugin": ["oh-my-openagent@latest"],
+  "$schema": "https://opencode.ai/config.json",
+  "model": "xai/grok-4.7",
+  "small_model": "opencode-go/glm-5.3-flash",
+  "enabled_providers": ["opencode-go", "xai"],
+  "compaction": {
+    "auto": true,
+    "prune": true
+  }
+}
