@@ -1,0 +1,33 @@
+// OMO configuration
+{
+  "[opencode]": {
+    "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/omo.schema.json",
+    "agents": {
+      "sisyphus": { "model": "xai/grok-4.7", "reasoning": "high" },
+      "oracle": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "librarian": { "model": "opencode-go/glm-5.3-flash" },
+      "explore": { "model": "opencode-go/glm-5.3-flash" },
+      "multimodal-looker": { "model": "xai/grok-4.7", "reasoning": "low" },
+      "prometheus": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "metis": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "momus": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "atlas": { "model": "xai/grok-4.7", "reasoning": "high" },
+      "sisyphus-junior": { "model": "xai/grok-4.7", "reasoning": "high" }
+    },
+    "categories": {
+      "visual-engineering": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "ultrabrain": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "deep": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "artistry": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "quick": { "model": "opencode-go/glm-5.3-flash" },
+      "unspecified-low": { "model": "opencode-go/glm-5.3-flash" },
+      "unspecified-high": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+      "writing": { "model": "opencode-go/glm-5.3-flash" }
+    },
+    "background_task": {
+      "providerConcurrency": { "xai": 2 },
+      "modelConcurrency": { "xai/grok-4.7": 1 }
+    }
+  },
+  "_migrations": ["2026-08-reasoning-unification"]
+}
