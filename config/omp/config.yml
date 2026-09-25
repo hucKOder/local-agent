@@ -1,6 +1,6 @@
 # oh-my-pi (omp) configuration
 # Install: copy to ~/.omp/agent/config.yml
-# Auth: /login xai-oauth (SuperGrok), then add the OpenCode Go gateway key.
+# Auth: omp login xai-oauth (SuperGrok), then omp login opencode-go.
 #
 # Same routing as config/omo/omo.jsonc:
 # Grok is flat rate (SuperGrok oauth), opencode-go is a metered allowance.

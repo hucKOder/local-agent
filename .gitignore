@@ -3,6 +3,8 @@ auth.json
 **/*auth.json
 *.env
 .env*
+# omp stores provider logins here (~/.omp/agent/agent.db).
+agent.db*
 
 # Local session state in this workspace, not setup.
 /.omo/
