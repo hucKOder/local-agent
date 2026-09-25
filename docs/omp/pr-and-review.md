@@ -60,7 +60,7 @@ omp's `github` tool wraps the `gh` CLI. Without `gh`, PR review by URL, PR creat
 
 ## How omp reviews
 
-`/review` and `/gl-review` both dispatch the bundled `reviewer` subagents on the `slow` role (grok-4.7:xhigh). They run on Grok because a review starts several agents at once, which would use up the `openai-codex` window quickly. When the `xai-oauth` pool is used up, reviewers fall back to gpt-6-astra:max; check `omp usage` before a large review.
+`/review` and `/gl-review` both dispatch the bundled `reviewer` subagents on the `slow` role (grok-4.7:xhigh). They run on Grok because a review starts several agents at once, which would use up the `openai-codex` window quickly. When the `xai-oauth` pool is used up, reviewers fall back to gpt-5.6-luna:xhigh, which keeps them off the Astra allowance.
 
 ### Targets
 
@@ -95,7 +95,7 @@ Any extra words after the command become review instructions. Useful focuses for
 | < 5000 | up to 8 |
 | 5000+ | up to 16 |
 
-`uv.lock` churn counts as changed lines. Review lockfile-only updates separately, or tell the reviewer to skip `uv.lock`. `/gl-review` skips lockfile hunks by default.
+`/review` leaves lock files (`*.lock`, so also `uv.lock`) out of the diff: they do not count as changed lines and are not reviewed. Check dependency changes in `uv.lock` yourself. `/gl-review` skips them too, unless the dependency change is the point of the MR.
 
 ### What you get
 
@@ -134,7 +134,7 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
    # GitLab, push and open the MR in one step (no glab needed)
    git push -u origin HEAD -o merge_request.create -o merge_request.target=main
    ```
-5. **Get CI green.** `/green` on GitHub, `/gl-green` on GitLab. Both watch the pipeline for HEAD, read failing job logs, make a minimal fix, push, and repeat until the latest HEAD is green. Typical Python failures they handle: a test failing on another Python version in the matrix, ruff format drift, a missing dependency in `pyproject.toml`. They push commits on their own; use them only on your own branch. `/gl-green` retries a flaky job once and never loosens jobs or lint rules to get green. Both run on the main agent (gpt-6-astra:medium), so a long CI loop uses a large share of the `openai-codex` window.
+5. **Get CI green.** `/green` on GitHub, `/gl-green` on GitLab. Both watch the pipeline for HEAD, read failing job logs, make a minimal fix, push, and repeat until the latest HEAD is green. Typical Python failures they handle: a test failing on another Python version in the matrix, ruff format drift, a missing dependency in `pyproject.toml`. They push commits on their own; use them only on your own branch. `/gl-green` retries a flaky job once and never loosens jobs or lint rules to get green. Both run on the main agent (gpt-6-astra:medium), so a long CI loop uses a large share of the `openai-codex` window. If HEAD carries a tag, `/green` force-moves that tag to each new HEAD it pushes.
 6. **Address review comments.** GitHub: "Read `pr://<N>` and address the review comments". GitLab: "Run `glab mr view <iid> --comments` and address the open threads". Add "list what you changed and what you disagree with". Review the diff, commit, push.
 
 ## Someone else's PR or MR
@@ -145,7 +145,7 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
 2. **Run it locally when the diff is not enough.**
    - GitHub: "check out PR <N>, run uv sync and the test suite". `github` `pr_checkout` creates a dedicated worktree.
    - GitLab: the `/gl-review` worktree is already there: `cd ../<repo>-mr-<iid> && uv sync && uv run pytest -q`.
-   - Clean up: `omp worktree list` / `omp worktree clear` for GitHub checkouts, `git worktree remove ../<repo>-mr-<iid>` and `git branch -D mr-<iid>` for GitLab.
+   - Clean up GitHub checkouts with `git worktree remove <path>` (`omp worktree list` shows the path; `omp worktree clear` removes only leftovers from crashed sessions). GitLab: `git worktree remove ../<repo>-mr-<iid>` and `git update-ref -d refs/mr/<iid>`.
 3. **Add your own judgement.** Design, naming, API shape, new dependencies and scope are not covered by the reviewer.
 4. **Post the review yourself.** omp's findings stay local, and `/gl-review` never posts. Ask omp to draft the comment text, edit it, then post:
    ```

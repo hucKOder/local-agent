@@ -7,8 +7,8 @@ usage() {
   cat <<'EOF'
 Usage: ./install.sh [--link] [--dry-run]
 
-Installs config/omp/config.yml and config/omp/commands/*.md into
-${PI_CODING_AGENT_DIR:-~/.omp/agent}.
+Installs config/omp/config.yml, config/omp/tutor.md, config/omp/commands/*.md
+and config/shell/omp-modes.sh into ${PI_CODING_AGENT_DIR:-~/.omp/agent}.
   --link     symlink instead of copy, so `git pull` updates the live config
   --dry-run  print what would change, touch nothing
 EOF
@@ -52,6 +52,14 @@ install_file() {
 }
 
 install_file config/omp/config.yml "$omp_dir/config.yml"
+install_file config/omp/tutor.md "$omp_dir/tutor.md"
+install_file config/shell/omp-modes.sh "$omp_dir/omp-modes.sh"
 for f in "$repo"/config/omp/commands/*.md; do
   install_file "config/omp/commands/$(basename "$f")" "$omp_dir/commands/$(basename "$f")"
 done
+
+if ! grep -qs omp-modes.sh "$HOME/.bashrc" "$HOME/.zshrc"; then
+  echo
+  echo "next     add the omp-learn and omp-do launchers to your shell rc:"
+  echo "         source $omp_dir/omp-modes.sh"
+fi

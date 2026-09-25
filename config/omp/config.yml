@@ -7,7 +7,7 @@
 # plans, cheap GPT-5.6 Luna for workers, lookups and chores. Astra is capped
 # at roughly 5-45 messages per 5 hours, so it is kept off fan-out roles.
 # xai-oauth runs the fan-out-heavy background roles (/review reviewers,
-# ultrathink, advisor) and is the fallback when the openai-codex window runs out.
+# hard turns via /switch @slow, advisor) and is the fallback when the openai-codex window runs out.
 
 enabledProviders:
   - openai-codex
@@ -21,7 +21,7 @@ disabledProviders:
 modelRoles:
   # main agent
   default: openai-codex/gpt-6-astra:medium
-  # hard reasoning, ultrathink, /review reviewers (several at once, so not on Astra)
+  # hard turns (/switch @slow), /review reviewers (several at once, so not on Astra)
   slow: xai-oauth/grok-4.7:xhigh
   # plan mode
   plan: openai-codex/gpt-6-astra:medium
@@ -54,8 +54,9 @@ retry:
       - xai-oauth/grok-4.7:high
     plan:
       - xai-oauth/grok-4.7:high
+    # Reviewers stay off Astra even when Grok's weekly pool is used up.
     slow:
-      - openai-codex/gpt-6-astra:max
+      - openai-codex/gpt-5.6-luna:xhigh
     advisor:
       - openai-codex/gpt-5.6-luna:high
     task:
@@ -85,6 +86,9 @@ compaction:
 
 # Oversized tool output spills to an artifact file and is previewed.
 # Nothing is lost; the agent can re-read the file on demand.
+# Ask before shell commands in your own working tree. omp-learn lowers this to
+# always-ask; omp-do raises it to yolo, only inside its own worktree.
 tools:
+  approvalMode: write
   artifactSpillThreshold: 20
   artifactTailLines: 500

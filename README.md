@@ -2,7 +2,7 @@
 
 A lightweight, token-saving setup for **oh-my-pi (omp)**, the terminal coding agent: model routing, fallbacks, concurrency limits, GitLab commands and workflow guides.
 
-Two flat-rate subscriptions with separate usage pools. The `openai-codex` plan runs the interactive work: GPT-6 Astra for the main agent and plans, GPT-5.6 Luna for subagents, search and chores. The `xai-oauth` plan runs the roles that fan out or run in the background (`/review` reviewers, `ultrathink`, advisor), and each subscription is the other's fallback when its pool runs out.
+Two flat-rate subscriptions with separate usage pools. The `openai-codex` plan runs the interactive work: GPT-6 Astra for the main agent and plans, GPT-5.6 Luna for subagents, search and chores. The `xai-oauth` plan runs the roles that fan out or run in the background (`/review` reviewers, hard turns, advisor), and each subscription is the other's fallback when its pool runs out.
 
 ## Contents
 
@@ -11,6 +11,8 @@ Two flat-rate subscriptions with separate usage pools. The `openai-codex` plan r
 | `config/omp/config.yml` | `~/.omp/agent/config.yml` | Model roles, fallbacks, concurrency, compaction |
 | `config/omp/commands/gl-review.md` | `~/.omp/agent/commands/` | `/gl-review <mr-iid>`: review a GitLab MR with reviewer agents |
 | `config/omp/commands/gl-green.md` | `~/.omp/agent/commands/` | `/gl-green`: fix GitLab CI until the pipeline for HEAD passes |
+| `config/omp/tutor.md` | `~/.omp/agent/tutor.md` | Tutor prompt for `omp-learn` |
+| `config/shell/omp-modes.sh` | `~/.omp/agent/omp-modes.sh` | `omp-learn` and `omp-do` shell launchers; source it from `~/.bashrc` |
 | `docs/omp/` | - | Workflow guides |
 | `install.sh` | - | Installer |
 | `experiments/omo-opencode/` | - | Earlier OpenCode + OMO experiment. Not installed, not maintained |
@@ -21,7 +23,7 @@ Two flat-rate subscriptions with separate usage pools. The `openai-codex` plan r
 |---|---|---|---|
 | `default` | Main agent | `openai-codex/gpt-6-astra` medium | `xai-oauth/grok-4.7` high |
 | `plan` | Plan mode | `openai-codex/gpt-6-astra` medium | `xai-oauth/grok-4.7` high |
-| `slow` | Hard reasoning, `ultrathink`, `/review` reviewers | `xai-oauth/grok-4.7` xhigh | `openai-codex/gpt-6-astra` max |
+| `slow` | Hard turns (`/switch @slow`), `/review` reviewers | `xai-oauth/grok-4.7` xhigh | `openai-codex/gpt-5.6-luna` xhigh |
 | `task` | Subagent workers | `openai-codex/gpt-5.6-luna` high | `xai-oauth/grok-4.7` high |
 | `smol` | `scout` and `sonic` subagents, quick lookups | `openai-codex/gpt-5.6-luna` low | `xai-oauth/grok-4.7` low |
 | `vision` | Image input | `openai-codex/gpt-5.6-terra` low | `xai-oauth/grok-4.7` low |
@@ -32,10 +34,13 @@ Why this split: in the [Rails AI feature-ticket benchmark](https://rubyonrails.o
 
 Limits: 4 parallel `openai-codex` requests, 2 parallel `xai-oauth` requests, 4 concurrent subagents.
 
+Approvals: `write` by default, so omp asks before shell commands. `omp-learn` uses `always-ask`; `omp-do` uses `yolo`, only inside its own worktree.
+
 ## Prerequisites
 
 - Linux, macOS or WSL with bash and git.
 - bun 1.3.14 or newer.
+- omp: tested with 18.3.1 (`omp --version`). The launchers use `--approval-mode`, `--append-system-prompt` and `--max-time`.
 - Subscriptions that support OAuth login for `openai-codex` and `xai-oauth`. With other providers, see [Adapt to your providers](#adapt-to-your-providers).
 - For PR and MR work: `gh` for GitHub, `glab` for GitLab.
 - For Python projects: uv, plus ruff, basedpyright and pytest as project dev dependencies (see [docs/omp/feature-workflow.md](docs/omp/feature-workflow.md)).
@@ -66,6 +71,11 @@ Limits: 4 parallel `openai-codex` requests, 2 parallel `xai-oauth` requests, 4 c
    omp models openai-codex
    omp models xai-oauth
    ```
+5. Add the `omp-learn` and `omp-do` launchers to your shell (use `~/.zshrc` for zsh), then open a new shell:
+   ```
+   grep -qs omp-modes.sh ~/.bashrc || echo 'source ~/.omp/agent/omp-modes.sh' >> ~/.bashrc
+   ```
+   `install.sh` prints this reminder until the line is there. With `PI_CODING_AGENT_DIR` set, source `omp-modes.sh` from that directory instead.
 
 ## Adapt to your providers
 
@@ -89,6 +99,7 @@ git pull
 
 ## Guides
 
+- [Learn or delegate](docs/omp/learn-or-delegate.md): when to write the code yourself and when to hand it to an agent, with the principles for each.
 - [Feature workflow](docs/omp/feature-workflow.md): plan, implement, verify, review, commit. [Usage limits](docs/omp/feature-workflow.md#usage-limits) covers both usage pools and how to make the Astra window last.
 - [Coding yourself with omp alongside](docs/omp/hands-on-coding.md): pairing without handing everything over.
 - [PRs, MRs and code review](docs/omp/pr-and-review.md): GitHub and GitLab.

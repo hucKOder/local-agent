@@ -1,20 +1,20 @@
 # Coding yourself with omp alongside
 
-How to use omp as a pair programmer on a Python project while you keep writing the code. The agent explains, scaffolds, writes tests and reviews; you own the design and the core logic.
+How to use omp as a pair programmer on a Python project while you keep writing the code. This is learn mode from [learn-or-delegate.md](learn-or-delegate.md): the agent explains, scaffolds and reviews; you own the design, the core logic and the test cases.
 
-Related: [feature-workflow.md](feature-workflow.md) for fully delegated features and project setup, [pr-and-review.md](pr-and-review.md) for GitHub PRs and GitLab MRs.
+Related: [learn-or-delegate.md](learn-or-delegate.md) for when to code yourself and when to delegate, [feature-workflow.md](feature-workflow.md) for fully delegated features and project setup, [pr-and-review.md](pr-and-review.md) for GitHub PRs and GitLab MRs.
 
 ## Setup
 
 ### Run omp next to your editor
 
-- Open a second terminal pane in the repo root (your editor's terminal or tmux) and run `omp` there.
+- Open a second terminal pane in the repo root (your editor's terminal or tmux) and run `omp-learn` there ([setup](learn-or-delegate.md#setup)). It starts omp with `always-ask` and the tutor prompt.
 - Editors that support the Agent Client Protocol can run omp inside the editor via `omp acp`.
 - Have `basedpyright` and `ruff` in the project `.venv` (see [feature-workflow.md](feature-workflow.md#per-project)). Without a language server omp falls back to text search for renames and references.
 
 ### Make the agent ask before it acts
 
-omp's default `tools.approvalMode` is `yolo`: every tool call runs without asking. When you share the working tree, lower it.
+omp's own default `tools.approvalMode` is `yolo`: every tool call runs without asking. This config sets `write` globally, `omp-learn` uses `always-ask`, and `omp-do` uses `yolo` only inside its own worktree.
 
 | Mode | Auto-approved | Asks for | Use when |
 |---|---|---|---|
@@ -50,27 +50,26 @@ With `write`, the agent still asks before `uv add`, `pip install` or any other c
 
 | Need | How |
 |---|---|
-| Where is X handled? | Ask in `/plan` mode (read-only), or run `omp find "<behavior>"` from the shell |
+| Where is X handled? | Ask in `omp-learn`, or run `omp find "<behavior>"` from the shell |
 | Explain a module or function | Ask with a path: `explain @src/app/client.py` |
-| Quick fact, no tool calls | `/btw <question>` |
+| Quick fact, no tool calls | `/btw <question>`. It sends the whole session context to the session model, so on Astra it costs about as much as a normal prompt |
 | Try a snippet against your code | Ask it to run it in its Python eval kernel; the kernel uses the project `.venv`, so `import app` works |
 | See what a tool returns for a file or URL | `omp read <path-or-url>` |
 
-`/plan` is the safest mode for pairing: the working tree is read-only and the agent cannot edit even if you ask.
+`/plan` blocks file writes and edits, but not shell commands, and it keeps steering the agent toward a plan. Use it to design a change, not to ask questions; `omp-learn` is the safe mode for questions.
 
 ### Split the work by file or layer
 
-Give the agent scaffolding and tests, and keep the logic yourself:
+Give the agent the scaffolding; keep the logic and the test cases yourself:
 
 ```
 In src/app/client.py add a `retries: int = 3` parameter to ApiClient.get and a
 _backoff_delays(retries) helper whose body raises NotImplementedError. In
-tests/test_client.py write parametrized pytest cases for success after retries and
-for giving up after the last attempt, using a fake transport fixture. Do not touch
-any other file. Do not run the test suite.
+tests/conftest.py add a fake transport fixture that fails a configurable number
+of times before it succeeds. Do not touch any other file. Do not run the test suite.
 ```
 
-Then implement the bodies yourself and run `uv run pytest -q`. The reverse also works: you write the tests, the agent implements until they pass.
+Then write the test cases in `tests/test_client.py`, implement the bodies yourself and run `uv run pytest -q`. The reverse, where you write the tests and the agent implements until they pass, is delegate mode: use it only for code you already know how to write.
 
 Rules that keep the split clean:
 
@@ -85,25 +84,25 @@ Rules that keep the split clean:
 |---|---|
 | Review what you just wrote | `/review` -> **2. Review uncommitted changes** |
 | Review with a focus | `/review check exception handling and async cancellation` |
-| Line-level notes on your diff | `/annotate code-review`, then pick local changes |
-| Fix lint and type errors you do not care to fix by hand | `/cleanse`. It detects ruff, pytest, pyright/basedpyright and mypy from your config and fixes findings with parallel subagents; it edits files |
+| Go through changes line by line, including the agent's | `/annotate code-review`, then pick local changes. You mark lines with your own notes and questions, then send them to a reviewer or paste them into the prompt |
+| Fix lint and type errors you do not care to fix by hand | `/cleanse`. It runs ruff, basedpyright only when the repo has a `pyrightconfig.json`, and pytest only with `--tests`, then fixes findings with parallel subagents on the `smol` model; it edits files |
 
 The reviewer reports only provable, patch-introduced bugs with P0-P3 priority. It skips style and pre-existing issues, so a clean review is not a design review.
 
-### Let it take the boring parts
+### Let it take the chores
 
 | Task | How |
 |---|---|
 | Rename across the codebase | Ask the agent; it uses LSP references from basedpyright |
-| Add type hints to an untyped module | Ask with the module path, then run `uv run basedpyright` |
+| Add type hints to a module you understand | Ask with the module path, then run `uv run basedpyright` |
 | Mechanical edits in files you are not in | Ask with explicit targets; it may route them to the cheap `sonic` agent |
-| Commit message for your changes | `omp commit --dry-run`, then `omp commit` |
+| Commit message for your changes | Stage first, then `omp commit --dry-run` and `omp commit`. With nothing staged, even `--dry-run` stages all changes |
 | Stage hunks by hand | `/git` or `omp git` |
-| Side task while you keep coding | `/tan <request>`. It runs in the same directory; use `/wt` or `omp worktree add` (then `uv sync` there) if it must not touch your files |
+| Side task while you keep coding | `omp-do <branch> "<task>"` in another pane. `/tan <request>` is only for questions or files you are not in: it runs with no approvals, on the session model, in your working tree |
 
 ### Switch between pairing and delegating
 
-Nothing to reconfigure; switch per task:
+Nothing to reconfigure; switch per task. For a whole task, use `omp-do` instead (see [learn-or-delegate.md](learn-or-delegate.md#delegate-mode)).
 
 1. Explore and design in `/plan`.
 2. At plan review, pick **Save and quit** to keep the plan as your own checklist, or **Approve and execute** to hand it over.
@@ -118,4 +117,4 @@ Nothing to reconfigure; switch per task:
 | Commit messages | `commit` -> gpt-5.6-luna:low (`openai-codex`, cheap) |
 | Reviews | `slow` -> grok-4.7:xhigh (`xai-oauth`) |
 
-Pairing means many short prompts, and each one counts against the Astra window (roughly 5-45 messages per 5 hours, see [feature-workflow.md](feature-workflow.md#usage-limits)). For trivial questions switch the session model with `/model @smol` (or alt+p), and back with `/model @default`. It answers faster too.
+Pairing means many short prompts, and each one counts against the Astra window (roughly 5-45 messages per 5 hours, see [feature-workflow.md](feature-workflow.md#usage-limits)). For trivial questions switch the session model with `/switch @smol` (or alt+p), and back with `/switch @default`. It answers faster too. `/model` takes no argument: `/model @smol` is sent to the model as a normal prompt.

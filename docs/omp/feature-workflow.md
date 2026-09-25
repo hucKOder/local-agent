@@ -2,6 +2,8 @@
 
 How to take a new feature in a Python project from idea to a reviewed commit with oh-my-pi (omp 18.x) and the model routing in `config/omp/config.yml`.
 
+This is delegate mode from [learn-or-delegate.md](learn-or-delegate.md). For a quick, mechanical task use `omp-do <branch> "<task>"`; this guide covers the full interactive flow.
+
 Related: [hands-on-coding.md](hands-on-coding.md) when you write most of the code yourself, [pr-and-review.md](pr-and-review.md) for GitHub PRs, GitLab MRs and review.
 
 ## Who does what
@@ -10,7 +12,7 @@ Related: [hands-on-coding.md](hands-on-coding.md) when you write most of the cod
 |---|---|---|---|
 | Plan | `/plan` mode, `scout` subagents | `plan` -> gpt-6-astra:medium, `smol` -> gpt-5.6-luna:low | `openai-codex` |
 | Implement | main agent, `task` workers | `default` -> gpt-6-astra:medium, `task` -> gpt-5.6-luna:high | `openai-codex` |
-| Hard problems | `ultrathink`, `slow` role | `slow` -> grok-4.7:xhigh | `xai-oauth` |
+| Hard problems | `/switch @slow` for a turn | `slow` -> grok-4.7:xhigh | `xai-oauth` |
 | Review | `/review`, `reviewer` agent | `slow` -> grok-4.7:xhigh | `xai-oauth` |
 | Commit message | `omp commit` | `commit` -> gpt-5.6-luna:low | `openai-codex` |
 
@@ -21,7 +23,7 @@ The two subscriptions have separate usage pools, and each is the other's fallbac
 | Pool | Limit | Roles |
 |---|---|---|
 | `openai-codex` | A 5-hour window and a weekly cap, shared by all its models. GPT-6 Astra: roughly 5-45 messages per 5 hours. GPT-5.6 Luna: roughly 250-2,000 | `default`, `plan`, `task`, `smol`, `vision`, `commit` |
-| `xai-oauth` | One weekly pool, no published numbers | `slow` (`/review` reviewers, `ultrathink`), `advisor` |
+| `xai-oauth` | One weekly pool, no published numbers | `slow` (`/review` reviewers, hard turns), `advisor` |
 
 - A message is one prompt you send. Large context, long tool output and high effort use more of the window, which is why the range is wide.
 - When a pool runs out, omp moves the affected roles to their fallback model and moves them back after the cooldown.
@@ -34,7 +36,7 @@ To make the Astra window last:
 |---|---|
 | Keep effort at medium; use `max` only for a single hard turn | Higher effort uses much more of the window |
 | `/new` for each feature, `/handoff` when the context grows, `/shake` after heavy tool output | Every prompt resends the context |
-| `/model @smol` for trivial questions, `/model @default` to go back | A Luna prompt costs a small fraction of an Astra prompt |
+| `/switch @smol` for trivial questions, `/switch @default` to go back | A Luna prompt costs a small fraction of an Astra prompt |
 | `omp --prewalk --prewalk-into @task` for mechanical plans | Plans on Astra, implements on Luna |
 
 ## One-time setup
@@ -98,7 +100,7 @@ To make the Astra window last:
 git switch -c feat/<short-name>
 ```
 
-omp adapts to whatever branch you are on. For a second feature in parallel, use a worktree: `omp worktree add ../<repo>-<name> -b feat/<name>`, or `/wt` inside a running session. A new worktree has no `.venv`; run `uv sync` in it first.
+omp adapts to whatever branch you are on. For a second feature in parallel, run `omp-do feat/<name>`: it creates the worktree `../<repo>-feat-<name>`, runs `uv sync` and opens omp there. `/wt` does something else: it moves the current session and its uncommitted changes into a new worktree.
 
 ### 2. Plan (read-only)
 
@@ -113,7 +115,7 @@ omp adapts to whatever branch you are on. For a second feature in parallel, use 
 3. The agent explores with `scout` subagents, asks 2-4 multiple-choice questions for real trade-offs, and writes `local://<slug>-plan.md`.
 4. Answer the questions. Unanswered questions become recorded assumptions with the recommended default.
 
-In plan mode the working tree is read-only: no edits, no `git commit`, no `uv add`.
+In plan mode omp blocks file writes and edits. Shell commands still run, so "no `git commit`, no `uv add`" is only an instruction to the model; under `yolo` nothing asks before a command.
 
 ### 3. Review the plan
 
@@ -145,12 +147,12 @@ While it runs:
 - `/todo` shows progress, `/usage` shows provider usage and limits, `/pause` freezes all agents.
 - Say `parallel` or `parallelize` to force subagent fan-out.
 - Say `orchestrate` for large multi-phase work: decompose, dispatch, verify each phase, no early stop.
-- Say `ultrathink` for a hard design or debugging turn (runs on the `slow` role, Grok xhigh). For the hardest turns switch to the strongest model with `/model openai-codex/gpt-6-astra:max`; it takes a large share of the `openai-codex` window.
+- For a hard design or debugging turn, `/switch @slow` (Grok xhigh, separate pool) or `/switch openai-codex/gpt-6-astra:max` (strongest, takes a large share of the `openai-codex` window), then `/switch @default`. `ultrathink` does not help in this config: it raises effort only when the thinking level is `auto`.
 
 For long autonomous work use goal mode instead of a plain prompt:
 
 - `/guided-goal`: the agent interviews you, then sets the goal.
-- `/goal`: toggle goal mode. The agent keeps working until every deliverable is verified against current repo state. A token budget can cap it; running out of budget never counts as done.
+- `/goal`: toggle goal mode. The agent keeps working until every deliverable is verified against current repo state. There is no budget by default; set one with `/goal budget <N>`. Running out of budget never counts as done.
 
 Saving the Astra window: prewalk switches models after the plan exists. `omp --prewalk --prewalk-into @task` plans on GPT-6 Astra and implements on gpt-5.6-luna. Use it for mechanical plans (renames, boilerplate, test scaffolding); Luna is much weaker than Astra on feature-sized work.
 
@@ -182,7 +184,7 @@ omp commit               # commit
 omp commit --no-changelog
 ```
 
-`omp commit` runs on the `commit` role (gpt-5.6-luna:low). To stage hunks by hand, use `/git` or `omp git`. Commit `uv.lock` together with `pyproject.toml` when dependencies change.
+`omp commit` runs on the `commit` role (gpt-5.6-luna:low). With nothing staged it stages all changes first, even with `--dry-run`; stage what you want before the preview. To stage hunks by hand, use `/git` or `omp git`. Commit `uv.lock` together with `pyproject.toml` when dependencies change.
 
 ### 9. PR or MR
 
@@ -195,8 +197,8 @@ Continue with [pr-and-review.md](pr-and-review.md). It covers GitHub (native `gi
 | New feature | `/new` (one session per feature) |
 | Context getting long | `/handoff` (summary document, compacts in place) |
 | Drop heavy tool output | `/shake` |
-| Quick question, no tools | `/btw <question>` |
-| Tangent while the agent keeps working | `/tan <request>` (background agent, same directory) |
+| Quick question, no tools | `/btw <question>` (full context, session model) |
+| Tangent while the agent keeps working | `/tan <request>` (background agent, same directory, no approvals) |
 | Resume yesterday's work | `omp -c` or `/resume` |
 | Try another approach from an earlier message | `/branch`, `/fork`, `/tree` |
 
@@ -204,10 +206,18 @@ Continue with [pr-and-review.md](pr-and-review.md). It covers GitHub (native `gi
 
 ## Headless one-shot
 
-For small, well-specified changes without the TUI:
+For small, well-specified changes without the TUI, use `omp-do` ([learn-or-delegate.md](learn-or-delegate.md#delegate-mode)):
 
 ```
-omp -p --plan-yolo --plan-yolo-into @default "Rename Settings.port to Settings.http_port everywhere, including tests" < /dev/null
+omp-do chore/http-port "Rename Settings.port to Settings.http_port everywhere, including tests. Done when: uv run pytest -q and uv run basedpyright pass."
 ```
 
-`--plan-yolo` plans read-only, auto-approves, then implements. Without `--plan-yolo-into` it implements on the `smol` role (gpt-5.6-luna:low), which is too weak for anything but trivial edits. `< /dev/null` stops omp from waiting on stdin in scripts.
+In its own worktree it runs:
+
+```
+omp -p --approval-mode yolo --max-time 20m --plan-yolo --plan-yolo-into @task "<task>" < /dev/null
+```
+
+- `--plan-yolo` plans read-only, auto-approves, then implements on the role given by `--plan-yolo-into`. Without it, it implements on `smol` (gpt-5.6-luna:low), which is too weak for anything but trivial edits.
+- `--approval-mode yolo` is required: with this config's `write`, a headless run cannot approve shell commands, so it cannot run the tests. That is why it runs only in a worktree.
+- `--max-time` stops a run that goes in circles. `< /dev/null` stops omp from waiting on stdin.
