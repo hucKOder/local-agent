@@ -1,14 +1,17 @@
 # oh-my-pi (omp) configuration
 # Install: ./install.sh (copies to ~/.omp/agent/config.yml)
-# Auth: omp login xai-oauth (Grok subscription), then omp login opencode-go.
+# Auth: omp login openai-codex, then omp login xai-oauth.
 #
-# Grok is flat rate, opencode-go is a metered allowance.
-# Grok handles the main and hard turns. Cheap opencode-go models handle
-# fan-out, and they are the only overflow targets when Grok is rate limited.
+# Two flat-rate subscriptions with separate pools.
+# openai-codex runs the interactive work: GPT-6 Astra for the main agent and
+# plans, cheap GPT-5.6 Luna for workers, lookups and chores. Astra is capped
+# at roughly 5-45 messages per 5 hours, so it is kept off fan-out roles.
+# xai-oauth runs the fan-out-heavy background roles (/review reviewers,
+# ultrathink, advisor) and is the fallback when the openai-codex window runs out.
 
 enabledProviders:
+  - openai-codex
   - xai-oauth
-  - opencode-go
 
 # Skip the `claude` discovery source (another harness's CLAUDE.md, commands
 # and MCP config): it would add to every prompt. Project rules go in AGENTS.md.
@@ -17,20 +20,20 @@ disabledProviders:
 
 modelRoles:
   # main agent
-  default: xai-oauth/grok-4.7:high
-  # hard reasoning, ultrathink, /review reviewers
+  default: openai-codex/gpt-6-astra:medium
+  # hard reasoning, ultrathink, /review reviewers (several at once, so not on Astra)
   slow: xai-oauth/grok-4.7:xhigh
   # plan mode
-  plan: xai-oauth/grok-4.7:high
+  plan: openai-codex/gpt-6-astra:medium
   # `task` subagent workers
-  task: opencode-go/gpt-5.6-luna:high
+  task: openai-codex/gpt-5.6-luna:high
   # `scout` and `sonic` subagents, quick lookups
-  smol: opencode-go/mimo-v2.6-flash
+  smol: openai-codex/gpt-5.6-luna:low
   # image input
-  vision: xai-oauth/grok-4.7:low
+  vision: openai-codex/gpt-5.6-terra:low
   # omp commit, harness chores
-  commit: opencode-go/glm-5.3-flash
-  # per-turn reviewer. Off until advisor.enabled is true: it reviews every turn on Grok.
+  commit: openai-codex/gpt-5.6-luna:low
+  # per-turn reviewer. Off until advisor.enabled is true: it reviews every turn.
   advisor: xai-oauth/grok-4.7:medium
 
 advisor:
@@ -39,44 +42,40 @@ advisor:
 defaultThinkingLevel: high
 textVerbosity: low
 
-# Never let a rate limit silently promote a model. Fallbacks are cheap
-# opencode-go models only, and the primary returns after the cooldown.
+# Each subscription is the other's fallback, and the primary returns after
+# the cooldown. The openai-codex allowance is shared across its models, so an
+# openai-codex role falls back to Grok rather than to another openai-codex model.
 retry:
   enabled: true
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     default:
-      - opencode-go/gpt-5.6-luna
-      - opencode-go/minimax-m3
-    slow:
-      - opencode-go/gpt-5.6-luna
-      - opencode-go/minimax-m3
+      - xai-oauth/grok-4.7:high
     plan:
-      - opencode-go/gpt-5.6-luna
-      - opencode-go/minimax-m3
+      - xai-oauth/grok-4.7:high
+    slow:
+      - openai-codex/gpt-6-astra:max
     advisor:
-      - opencode-go/gpt-5.6-luna
-      - opencode-go/minimax-m3
+      - openai-codex/gpt-5.6-luna:high
     task:
-      - opencode-go/mimo-v2.6-flash
-      - opencode-go/deepseek-v4-flash
+      - xai-oauth/grok-4.7:high
     smol:
-      - opencode-go/deepseek-v4-flash
-      - opencode-go/glm-5.3-flash
+      - xai-oauth/grok-4.7:low
     vision:
-      - opencode-go/mimo-v2-omni
+      - xai-oauth/grok-4.7:low
     commit:
-      - opencode-go/mimo-v2.6-flash
+      - xai-oauth/grok-4.7:low
 
 # Parallel requests per provider. omp has no per-model limit.
+# openai-codex has no published concurrency limit; lower it on 429s.
 providers:
   maxInFlightRequests:
+    openai-codex: 4
     xai-oauth: 2
-    opencode-go: 4
 
 # Default is 32 concurrent subagents. Cap fan-out so a big parallel run
-# cannot drain the metered opencode-go allowance.
+# cannot drain the openai-codex 5-hour window.
 task:
   maxConcurrency: 4
 

@@ -6,15 +6,36 @@ Related: [hands-on-coding.md](hands-on-coding.md) when you write most of the cod
 
 ## Who does what
 
-| Phase | omp mechanism | Role -> model | Cost bucket |
+| Phase | omp mechanism | Role -> model | Usage pool |
 |---|---|---|---|
-| Plan | `/plan` mode, `scout` subagents | `plan` -> grok-4.7:high, `smol` -> mimo-v2.6-flash | Grok flat rate, opencode-go (cheap) |
-| Implement | main agent, `task` workers | `default` -> grok-4.7:high, `task` -> gpt-5.6-luna:high | Grok, opencode-go (metered) |
-| Hard problems | `ultrathink`, `slow` role | `slow` -> grok-4.7:xhigh | Grok |
-| Review | `/review`, `reviewer` agent | `slow` -> grok-4.7:xhigh | Grok |
-| Commit message | `omp commit` | `commit` -> glm-5.3-flash | opencode-go (cheap) |
+| Plan | `/plan` mode, `scout` subagents | `plan` -> gpt-6-astra:medium, `smol` -> gpt-5.6-luna:low | `openai-codex` |
+| Implement | main agent, `task` workers | `default` -> gpt-6-astra:medium, `task` -> gpt-5.6-luna:high | `openai-codex` |
+| Hard problems | `ultrathink`, `slow` role | `slow` -> grok-4.7:xhigh | `xai-oauth` |
+| Review | `/review`, `reviewer` agent | `slow` -> grok-4.7:xhigh | `xai-oauth` |
+| Commit message | `omp commit` | `commit` -> gpt-5.6-luna:low | `openai-codex` |
 
-Limits that shape the flow: 2 parallel Grok requests, 4 parallel opencode-go requests, 4 concurrent subagents.
+## Usage limits
+
+The two subscriptions have separate usage pools, and each is the other's fallback.
+
+| Pool | Limit | Roles |
+|---|---|---|
+| `openai-codex` | A 5-hour window and a weekly cap, shared by all its models. GPT-6 Astra: roughly 5-45 messages per 5 hours. GPT-5.6 Luna: roughly 250-2,000 | `default`, `plan`, `task`, `smol`, `vision`, `commit` |
+| `xai-oauth` | One weekly pool, no published numbers | `slow` (`/review` reviewers, `ultrathink`), `advisor` |
+
+- A message is one prompt you send. Large context, long tool output and high effort use more of the window, which is why the range is wide.
+- When a pool runs out, omp moves the affected roles to their fallback model and moves them back after the cooldown.
+- `omp usage` (or `/usage` in a session) shows how much of each pool is left and when it resets. `omp usage --history --days 7` shows hourly snapshots, which tells you how fast a normal week drains each pool.
+- Parallel requests: 4 on `openai-codex`, 2 on `xai-oauth`. At most 4 subagents run at once.
+
+To make the Astra window last:
+
+| Do | Why |
+|---|---|
+| Keep effort at medium; use `max` only for a single hard turn | Higher effort uses much more of the window |
+| `/new` for each feature, `/handoff` when the context grows, `/shake` after heavy tool output | Every prompt resends the context |
+| `/model @smol` for trivial questions, `/model @default` to go back | A Luna prompt costs a small fraction of an Astra prompt |
+| `omp --prewalk --prewalk-into @task` for mechanical plans | Plans on Astra, implements on Luna |
 
 ## One-time setup
 
@@ -26,7 +47,7 @@ Limits that shape the flow: 2 parallel Grok requests, 4 parallel opencode-go req
    pipx ensurepath
    pipx install uv
    ```
-2. Log in once: `omp login xai-oauth`, then `omp login opencode-go`.
+2. Log in once: `omp login openai-codex`, then `omp login xai-oauth`.
 3. Optional: keep approved plans on disk. Add to `~/.omp/agent/config.yml`:
    ```yaml
    plan:
@@ -65,8 +86,9 @@ Limits that shape the flow: 2 parallel Grok requests, 4 parallel opencode-go req
    - Type hints on all public functions.
    - `logging` only, no `print`.
    - Raise specific exceptions; never bare `except:`.
+   - Prefer stdlib and framework built-ins over hand-rolled helpers; check the installed version's API before writing a utility.
    ```
-3. Client code: sessions send code to the configured model providers (`xai-oauth`, `opencode-go`). Check the client's approval requirements before using omp on their repositories.
+3. Client code: sessions send code to the configured model providers (`openai-codex`, `xai-oauth`). Check the client's approval requirements before using omp on their repositories.
 
 ## The flow
 
@@ -115,7 +137,7 @@ Annotate sections or open the plan in your editor, then pick **Refine plan** unt
 
 ### 5. Implement
 
-The main agent (Grok) works inline first and fans out only independent slices to `task` workers (gpt-5.6-luna, max 4 at once). Workers never run the test suite, linters or formatters mid-flight; the main agent runs them once after they land.
+The main agent (GPT-6 Astra) works inline first and fans out only independent slices to `task` workers (gpt-5.6-luna, max 4 at once). Workers never run the test suite, linters or formatters mid-flight; the main agent runs them once after they land.
 
 While it runs:
 
@@ -123,14 +145,14 @@ While it runs:
 - `/todo` shows progress, `/usage` shows provider usage and limits, `/pause` freezes all agents.
 - Say `parallel` or `parallelize` to force subagent fan-out.
 - Say `orchestrate` for large multi-phase work: decompose, dispatch, verify each phase, no early stop.
-- Say `ultrathink` for a hard design or debugging turn (maximum thinking; Grok caps at xhigh).
+- Say `ultrathink` for a hard design or debugging turn (runs on the `slow` role, Grok xhigh). For the hardest turns switch to the strongest model with `/model openai-codex/gpt-6-astra:max`; it takes a large share of the `openai-codex` window.
 
 For long autonomous work use goal mode instead of a plain prompt:
 
 - `/guided-goal`: the agent interviews you, then sets the goal.
 - `/goal`: toggle goal mode. The agent keeps working until every deliverable is verified against current repo state. A token budget can cap it; running out of budget never counts as done.
 
-Cheaper execution: prewalk switches models after the plan exists. `omp --prewalk --prewalk-into @task` plans on Grok and implements on gpt-5.6-luna.
+Saving the Astra window: prewalk switches models after the plan exists. `omp --prewalk --prewalk-into @task` plans on GPT-6 Astra and implements on gpt-5.6-luna. Use it for mechanical plans (renames, boilerplate, test scaffolding); Luna is much weaker than Astra on feature-sized work.
 
 ### 6. Verify
 
@@ -150,7 +172,7 @@ uv run basedpyright
 2. Reviewer agents (Grok xhigh) report findings with priority P0-P3, confidence and line ranges, plus an overall verdict.
 3. Fix P0/P1 before committing: "fix findings 1 and 3", or fix them yourself.
 
-`/advisor` toggles a second model that reviews every agent turn while it works. It runs on Grok and uses one of the two Grok slots, so turn it on only for risky changes.
+`/advisor` toggles a second model that reviews every agent turn while it works. It runs on Grok, off the `openai-codex` window, but uses one of the two Grok slots, so turn it on only for risky changes.
 
 ### 8. Commit
 
@@ -160,7 +182,7 @@ omp commit               # commit
 omp commit --no-changelog
 ```
 
-`omp commit` runs on the `commit` role (glm-5.3-flash). To stage hunks by hand, use `/git` or `omp git`. Commit `uv.lock` together with `pyproject.toml` when dependencies change.
+`omp commit` runs on the `commit` role (gpt-5.6-luna:low). To stage hunks by hand, use `/git` or `omp git`. Commit `uv.lock` together with `pyproject.toml` when dependencies change.
 
 ### 9. PR or MR
 
@@ -188,4 +210,4 @@ For small, well-specified changes without the TUI:
 omp -p --plan-yolo --plan-yolo-into @default "Rename Settings.port to Settings.http_port everywhere, including tests" < /dev/null
 ```
 
-`--plan-yolo` plans read-only, auto-approves, then implements. Without `--plan-yolo-into` it implements on the `smol` role (mimo-v2.6-flash). `< /dev/null` stops omp from waiting on stdin in scripts.
+`--plan-yolo` plans read-only, auto-approves, then implements. Without `--plan-yolo-into` it implements on the `smol` role (gpt-5.6-luna:low), which is too weak for anything but trivial edits. `< /dev/null` stops omp from waiting on stdin in scripts.

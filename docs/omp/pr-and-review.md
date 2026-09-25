@@ -60,7 +60,7 @@ omp's `github` tool wraps the `gh` CLI. Without `gh`, PR review by URL, PR creat
 
 ## How omp reviews
 
-`/review` and `/gl-review` both dispatch the bundled `reviewer` subagents on the `slow` role (grok-4.7:xhigh).
+`/review` and `/gl-review` both dispatch the bundled `reviewer` subagents on the `slow` role (grok-4.7:xhigh). They run on Grok because a review starts several agents at once, which would use up the `openai-codex` window quickly. When the `xai-oauth` pool is used up, reviewers fall back to gpt-6-astra:max; check `omp usage` before a large review.
 
 ### Targets
 
@@ -134,7 +134,7 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
    # GitLab, push and open the MR in one step (no glab needed)
    git push -u origin HEAD -o merge_request.create -o merge_request.target=main
    ```
-5. **Get CI green.** `/green` on GitHub, `/gl-green` on GitLab. Both watch the pipeline for HEAD, read failing job logs, make a minimal fix, push, and repeat until the latest HEAD is green. Typical Python failures they handle: a test failing on another Python version in the matrix, ruff format drift, a missing dependency in `pyproject.toml`. They push commits on their own; use them only on your own branch. `/gl-green` retries a flaky job once and never loosens jobs or lint rules to get green.
+5. **Get CI green.** `/green` on GitHub, `/gl-green` on GitLab. Both watch the pipeline for HEAD, read failing job logs, make a minimal fix, push, and repeat until the latest HEAD is green. Typical Python failures they handle: a test failing on another Python version in the matrix, ruff format drift, a missing dependency in `pyproject.toml`. They push commits on their own; use them only on your own branch. `/gl-green` retries a flaky job once and never loosens jobs or lint rules to get green. Both run on the main agent (gpt-6-astra:medium), so a long CI loop uses a large share of the `openai-codex` window.
 6. **Address review comments.** GitHub: "Read `pr://<N>` and address the review comments". GitLab: "Run `glab mr view <iid> --comments` and address the open threads". Add "list what you changed and what you disagree with". Review the diff, commit, push.
 
 ## Someone else's PR or MR
@@ -175,4 +175,4 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
 
 ## Client repositories
 
-Reviews send the diff to the `xai-oauth` provider (Grok). Check the client's approval requirements before reviewing client code with omp.
+Reviews and the advisor send the diff to `xai-oauth`. Everything else (main agent, workers, PR text, CI fixes) goes to `openai-codex`. When one pool runs out, its work moves to the other provider, so assume client code can reach both. Check the client's approval requirements before using omp on client code.

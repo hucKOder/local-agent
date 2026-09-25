@@ -113,9 +113,9 @@ Nothing to reconfigure; switch per task:
 
 | You ask for | Runs on |
 |---|---|
-| Questions, explanations, small edits | `default` -> grok-4.7:high (flat rate) |
-| Fast lookups via scout | `smol` -> mimo-v2.6-flash (opencode-go, cheap) |
-| Commit messages | `commit` -> glm-5.3-flash (opencode-go, cheap) |
-| Reviews | `slow` -> grok-4.7:xhigh (flat rate) |
+| Questions, explanations, small edits | `default` -> gpt-6-astra:medium (`openai-codex`) |
+| Fast lookups via scout | `smol` -> gpt-5.6-luna:low (`openai-codex`, cheap) |
+| Commit messages | `commit` -> gpt-5.6-luna:low (`openai-codex`, cheap) |
+| Reviews | `slow` -> grok-4.7:xhigh (`xai-oauth`) |
 
-To answer faster on trivial questions, switch the session model with `/model @smol` (or alt+p), and back with `/model @default`.
+Pairing means many short prompts, and each one counts against the Astra window (roughly 5-45 messages per 5 hours, see [feature-workflow.md](feature-workflow.md#usage-limits)). For trivial questions switch the session model with `/model @smol` (or alt+p), and back with `/model @default`. It answers faster too.
