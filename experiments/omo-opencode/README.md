@@ -9,5 +9,6 @@ This is the OpenCode + oh-my-openagent (OMO) setup used to try out multi-agent o
 | `opencode/opencode.jsonc` | `~/.config/opencode/opencode.jsonc` |
 | `opencode/tui.json` | `~/.config/opencode/tui.json` |
 | `omo/omo.jsonc` | `~/.omo/omo.jsonc` |
+| `feature-workflow.md` | Not installed: the feature workflow guide for OpenCode + OMO |
 
-The model routing matches `config/omp/config.yml`: OMO sisyphus/atlas map to the omp `default` role, prometheus to `plan`, oracle to `slow`, sisyphus-junior to `task`, explore/librarian to `smol`, multimodal-looker to `vision`.
+The model routing matched `config/omp/config.yml` while omp ran on `xai-oauth` and `opencode-go`, before the switch to `openai-codex`: OMO sisyphus/atlas map to the omp `default` role, prometheus to `plan`, oracle to `slow`, sisyphus-junior to `task`, explore/librarian to `smol`, multimodal-looker to `vision`.
