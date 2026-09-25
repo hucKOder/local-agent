@@ -189,14 +189,3 @@ omp -p --plan-yolo --plan-yolo-into @default "Rename Settings.port to Settings.h
 ```
 
 `--plan-yolo` plans read-only, auto-approves, then implements. Without `--plan-yolo-into` it implements on the `smol` role (mimo-v2.6-flash). `< /dev/null` stops omp from waiting on stdin in scripts.
-
-## Coming from the OMO workflow
-
-| OMO (OpenCode) | omp |
-|---|---|
-| `plan this: <feature>`, Prometheus interview | `/plan`, questions via the ask tool; `/guided-goal` for a longer interview |
-| Momus plan review | Plan review overlay (you), **Refine plan** |
-| `/start-work <plan>`, Atlas | **Approve and execute**; `/goal` for autonomous runs |
-| `review work` | `/review` |
-| `/handoff` | `/handoff` |
-| `/stop-continuation` | `/goal` (toggle off) or `/pause` |

@@ -1,4 +1,4 @@
-# Provider credentials. Copy ~/.local/share/opencode/auth.json by hand.
+# Provider credentials never belong in the repo.
 auth.json
 **/*auth.json
 *.env
@@ -6,9 +6,9 @@ auth.json
 # omp stores provider logins here (~/.omp/agent/agent.db).
 agent.db*
 
-# Local session state in this workspace, not setup.
+# Local agent session state in this workspace, not setup.
 /.omo/
 
-# Plugin install artifacts. Do not vendor these.
+# Package install artifacts. Do not vendor these.
 node_modules/
 package-lock.json

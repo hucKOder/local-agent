@@ -1,9 +1,8 @@
 # oh-my-pi (omp) configuration
-# Install: copy to ~/.omp/agent/config.yml
-# Auth: omp login xai-oauth (SuperGrok), then omp login opencode-go.
+# Install: ./install.sh (copies to ~/.omp/agent/config.yml)
+# Auth: omp login xai-oauth (Grok subscription), then omp login opencode-go.
 #
-# Same routing as config/omo/omo.jsonc:
-# Grok is flat rate (SuperGrok oauth), opencode-go is a metered allowance.
+# Grok is flat rate, opencode-go is a metered allowance.
 # Grok handles the main and hard turns. Cheap opencode-go models handle
 # fan-out, and they are the only overflow targets when Grok is rate limited.
 
@@ -11,26 +10,27 @@ enabledProviders:
   - xai-oauth
   - opencode-go
 
-# Claude Code compat assets are irrelevant to Go work and load into every prompt.
+# Skip the `claude` discovery source (another harness's CLAUDE.md, commands
+# and MCP config): it would add to every prompt. Project rules go in AGENTS.md.
 disabledProviders:
   - claude
 
 modelRoles:
-  # sisyphus
+  # main agent
   default: xai-oauth/grok-4.7:high
-  # oracle, ultrawork, ultrabrain/deep categories
+  # hard reasoning, ultrathink, /review reviewers
   slow: xai-oauth/grok-4.7:xhigh
-  # prometheus
+  # plan mode
   plan: xai-oauth/grok-4.7:high
-  # sisyphus-junior
+  # `task` subagent workers
   task: opencode-go/gpt-5.6-luna:high
-  # explore, librarian, quick category
+  # `scout` and `sonic` subagents, quick lookups
   smol: opencode-go/mimo-v2.6-flash
-  # multimodal-looker
+  # image input
   vision: xai-oauth/grok-4.7:low
-  # writing category, harness chores
+  # omp commit, harness chores
   commit: opencode-go/glm-5.3-flash
-  # momus/metis. Off until advisor.enabled is true: it reviews every turn on Grok.
+  # per-turn reviewer. Off until advisor.enabled is true: it reviews every turn on Grok.
   advisor: xai-oauth/grok-4.7:medium
 
 advisor:
@@ -69,7 +69,7 @@ retry:
     commit:
       - opencode-go/mimo-v2.6-flash
 
-# Mirrors background_task.providerConcurrency. omp has no per-model limit.
+# Parallel requests per provider. omp has no per-model limit.
 providers:
   maxInFlightRequests:
     xai-oauth: 2

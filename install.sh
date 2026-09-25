@@ -1,37 +1,33 @@
 #!/usr/bin/env bash
-# Install the configs in this repo into their live locations.
+# Install the omp config from this repo into the omp agent directory.
 # Existing files that differ are backed up as <file>.bak.<timestamp> first.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--link] [--dry-run] [opencode] [omo] [omp]
+Usage: ./install.sh [--link] [--dry-run]
 
-Installs all components when none are named.
+Installs config/omp/config.yml and config/omp/commands/*.md into
+${PI_CODING_AGENT_DIR:-~/.omp/agent}.
   --link     symlink instead of copy, so `git pull` updates the live config
   --dry-run  print what would change, touch nothing
 EOF
 }
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-omo_dir="$HOME/.omo"
 omp_dir="${PI_CODING_AGENT_DIR:-$HOME/.omp/agent}"
 stamp="$(date +%Y%m%dT%H%M%S)"
 mode=copy
 dry=0
-components=()
 
 for arg in "$@"; do
   case "$arg" in
     --link) mode=link ;;
     --dry-run) dry=1 ;;
     -h|--help) usage; exit 0 ;;
-    opencode|omo|omp) components+=("$arg") ;;
     *) usage >&2; exit 2 ;;
   esac
 done
-[ ${#components[@]} -eq 0 ] && components=(opencode omo omp)
 
 run() {
   if [ "$dry" -eq 1 ]; then echo "  would: $*"; else "$@"; fi
@@ -55,21 +51,7 @@ install_file() {
   if [ "$mode" = link ]; then run ln -s "$src" "$dst"; else run cp "$src" "$dst"; fi
 }
 
-for c in "${components[@]}"; do
-  echo "[$c]"
-  case "$c" in
-    opencode)
-      install_file config/opencode/opencode.jsonc "$opencode_dir/opencode.jsonc"
-      install_file config/opencode/tui.json "$opencode_dir/tui.json"
-      ;;
-    omo)
-      install_file config/omo/omo.jsonc "$omo_dir/omo.jsonc"
-      ;;
-    omp)
-      install_file config/omp/config.yml "$omp_dir/config.yml"
-      for f in "$repo"/config/omp/commands/*.md; do
-        install_file "config/omp/commands/$(basename "$f")" "$omp_dir/commands/$(basename "$f")"
-      done
-      ;;
-  esac
+install_file config/omp/config.yml "$omp_dir/config.yml"
+for f in "$repo"/config/omp/commands/*.md; do
+  install_file "config/omp/commands/$(basename "$f")" "$omp_dir/commands/$(basename "$f")"
 done
