@@ -1,0 +1,86 @@
+# oh-my-pi (omp) configuration
+# Install: copy to ~/.omp/agent/config.yml
+# Auth: /login xai-oauth (SuperGrok), then add the OpenCode Go gateway key.
+#
+# Same routing as config/omo/omo.jsonc:
+# Grok is flat rate (SuperGrok oauth), opencode-go is a metered allowance.
+# Grok handles the main and hard turns. Cheap opencode-go models handle
+# fan-out, and they are the only overflow targets when Grok is rate limited.
+
+enabledProviders:
+  - xai-oauth
+  - opencode-go
+
+# Claude Code compat assets are irrelevant to Go work and load into every prompt.
+disabledProviders:
+  - claude
+
+modelRoles:
+  # sisyphus
+  default: xai-oauth/grok-4.7:high
+  # oracle, ultrawork, ultrabrain/deep categories
+  slow: xai-oauth/grok-4.7:xhigh
+  # prometheus
+  plan: xai-oauth/grok-4.7:high
+  # sisyphus-junior
+  task: opencode-go/gpt-5.6-luna:high
+  # explore, librarian, quick category
+  smol: opencode-go/mimo-v2.6-flash
+  # multimodal-looker
+  vision: xai-oauth/grok-4.7:low
+  # writing category, harness chores
+  commit: opencode-go/glm-5.3-flash
+  # momus/metis. Off until advisor.enabled is true: it reviews every turn on Grok.
+  advisor: xai-oauth/grok-4.7:medium
+
+advisor:
+  enabled: false
+
+defaultThinkingLevel: high
+textVerbosity: low
+
+# Never let a rate limit silently promote a model. Fallbacks are cheap
+# opencode-go models only, and the primary returns after the cooldown.
+retry:
+  enabled: true
+  modelFallback: true
+  fallbackRevertPolicy: cooldown-expiry
+  fallbackChains:
+    default:
+      - opencode-go/gpt-5.6-luna
+      - opencode-go/minimax-m3
+    slow:
+      - opencode-go/gpt-5.6-luna
+      - opencode-go/minimax-m3
+    plan:
+      - opencode-go/gpt-5.6-luna
+      - opencode-go/minimax-m3
+    advisor:
+      - opencode-go/gpt-5.6-luna
+      - opencode-go/minimax-m3
+    task:
+      - opencode-go/mimo-v2.6-flash
+      - opencode-go/deepseek-v4-flash
+    smol:
+      - opencode-go/deepseek-v4-flash
+      - opencode-go/glm-5.3-flash
+    vision:
+      - opencode-go/mimo-v2-omni
+    commit:
+      - opencode-go/mimo-v2.6-flash
+
+# Mirrors background_task.providerConcurrency. omp has no per-model limit.
+providers:
+  maxInFlightRequests:
+    xai-oauth: 2
+    opencode-go: 4
+
+compaction:
+  enabled: true
+  keepRecentTokens: 40000
+
+# Oversized tool output spills to an artifact file and is previewed.
+# Nothing is lost; the agent can re-read the file on demand.
+tools:
+  artifactSpillThreshold: 20
+  artifactTailLines: 500
