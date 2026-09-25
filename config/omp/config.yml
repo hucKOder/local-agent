@@ -75,6 +75,11 @@ providers:
     xai-oauth: 2
     opencode-go: 4
 
+# Default is 32 concurrent subagents. Cap fan-out so a big parallel run
+# cannot drain the metered opencode-go allowance.
+task:
+  maxConcurrency: 4
+
 compaction:
   enabled: true
   keepRecentTokens: 40000
