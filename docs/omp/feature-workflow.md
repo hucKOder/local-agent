@@ -2,7 +2,7 @@
 
 How to take a new feature in a Python project from idea to a reviewed commit with oh-my-pi (omp 18.x) and the model routing in `config/omp/config.yml`.
 
-Related: [hands-on-coding.md](hands-on-coding.md) when you write most of the code yourself, [pr-and-review.md](pr-and-review.md) for PRs and review.
+Related: [hands-on-coding.md](hands-on-coding.md) when you write most of the code yourself, [pr-and-review.md](pr-and-review.md) for GitHub PRs, GitLab MRs and review.
 
 ## Who does what
 
@@ -162,9 +162,9 @@ omp commit --no-changelog
 
 `omp commit` runs on the `commit` role (glm-5.3-flash). To stage hunks by hand, use `/git` or `omp git`. Commit `uv.lock` together with `pyproject.toml` when dependencies change.
 
-### 9. PR
+### 9. PR or MR
 
-Continue with [pr-and-review.md](pr-and-review.md).
+Continue with [pr-and-review.md](pr-and-review.md). It covers GitHub (native `github` tool, `/green`) and GitLab (`glab`, `/gl-review`, `/gl-green`).
 
 ## Session hygiene
 

@@ -2,7 +2,7 @@
 
 How to use omp as a pair programmer on a Python project while you keep writing the code. The agent explains, scaffolds, writes tests and reviews; you own the design and the core logic.
 
-Related: [feature-workflow.md](feature-workflow.md) for fully delegated features and project setup, [pr-and-review.md](pr-and-review.md) for PRs.
+Related: [feature-workflow.md](feature-workflow.md) for fully delegated features and project setup, [pr-and-review.md](pr-and-review.md) for GitHub PRs and GitLab MRs.
 
 ## Setup
 
