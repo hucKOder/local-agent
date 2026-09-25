@@ -49,8 +49,14 @@ To make the Astra window last:
    pipx ensurepath
    pipx install uv
    ```
-2. Log in once: `omp login openai-codex`, then `omp login xai-oauth`.
-3. Optional: keep approved plans on disk. Add to `~/.omp/agent/config.yml`:
+2. Install the Python language servers. `./install.sh` does this; by hand:
+   ```
+   uv tool install basedpyright
+   uv tool install ruff
+   ```
+   They land in `~/.local/bin`, which `pipx ensurepath` already put on PATH. omp uses them in any project that has no copy in its `.venv`.
+3. Log in once: `omp login openai-codex`, then `omp login xai-oauth`.
+4. Optional: keep approved plans on disk. Add to `~/.omp/agent/config.yml`:
    ```yaml
    plan:
      autosave: true   # writes approved plans to <project>/.omp/plans/
@@ -63,7 +69,7 @@ To make the Astra window last:
    uv add --dev ruff basedpyright pytest
    uv sync
    ```
-   omp looks for language servers in `.venv/bin`. With `basedpyright` there it gets go-to-definition, references and safe renames; with `ruff` it gets lint diagnostics after each write. omp's prompt requires LSP for code navigation whenever a server is available. omp also supports `pyright`, `pylsp` and `ty` as language servers.
+   omp looks for language servers in `.venv/bin` first, then on PATH, so the project's pinned versions win over the machine-wide ones. With `basedpyright` it gets go-to-definition, references and safe renames; with `ruff` it gets lint diagnostics after each write. It starts them only when the directory you launch omp in has a `pyproject.toml`, `requirements.txt` or another Python project file, so start omp at the repo root. omp's prompt requires LSP for code navigation whenever a server is available. omp also supports `pyright`, `pylsp` and `ty` as language servers.
 2. Keep an `AGENTS.md` at the repo root. omp loads it into every session:
    ```markdown
    # AGENTS.md

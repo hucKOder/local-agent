@@ -10,7 +10,7 @@ Related: [learn-or-delegate.md](learn-or-delegate.md) for when to code yourself 
 
 - Open a second terminal pane in the repo root (your editor's terminal or tmux) and run `omp-learn` there ([setup](learn-or-delegate.md#setup)). It starts omp with `always-ask` and the tutor prompt.
 - Editors that support the Agent Client Protocol can run omp inside the editor via `omp acp`.
-- Have `basedpyright` and `ruff` in the project `.venv` (see [feature-workflow.md](feature-workflow.md#per-project)). Without a language server omp falls back to text search for renames and references.
+- Have `basedpyright` and `ruff` in the project `.venv` or on PATH (`install.sh` installs both as uv tools; see [feature-workflow.md](feature-workflow.md#per-machine)). Without a language server omp falls back to text search for renames and references.
 
 ### Make the agent ask before it acts
 
