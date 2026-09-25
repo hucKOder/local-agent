@@ -1,6 +1,6 @@
 # PRs and code review with omp
 
-How to review your own changes, open PRs, get CI green and review other people's PRs with omp.
+How to review your own changes, open PRs, get CI green and review other people's PRs in Python projects with omp.
 
 Related: [feature-workflow.md](feature-workflow.md), [hands-on-coding.md](hands-on-coding.md).
 
@@ -8,15 +8,15 @@ Related: [feature-workflow.md](feature-workflow.md), [hands-on-coding.md](hands-
 
 omp's `github` tool wraps the `gh` CLI. Without `gh`, PR review by URL, PR creation, PR checkout and CI watching do not work.
 
-1. Install gh in WSL. Ubuntu 26.04 ships 2.46; the GitHub apt repo at cli.github.com has the latest. Switch to it if a `github` op fails on the older version:
+1. Install gh. Ubuntu 26.04 ships 2.46; the project's own apt repo (see the gh docs) has the latest. Switch to it if a `github` op fails on the older version:
    ```
    sudo apt install gh
    ```
-2. Log in. The browser step opens in Windows:
+2. Log in. The browser step opens on the host:
    ```
    gh auth login
    ```
-3. Optional: let git push with the same login instead of Git Credential Manager:
+3. Optional: let git push with the same login instead of a separate credential helper:
    ```
    gh auth setup-git
    ```
@@ -33,10 +33,15 @@ omp's `github` tool wraps the `gh` CLI. Without `gh`, PR review by URL, PR creat
 | `/review` -> **2. Review uncommitted changes** | Working tree |
 | `/review` -> **3. Review a specific commit** | One commit |
 | `/review` -> **4. Custom review instructions** | Free-form instructions |
-| `/review https://github.com/<owner>/<repo>/pull/<N>` | A GitHub PR, read remotely via `pr://` (no checkout) |
+| `/review https://github.com/<owner>/<repo>/pull/<N>` | A remote PR, read via `pr://` (no checkout) |
 | `/review pr://<owner>/<repo>/<N>` | Same, short form |
 
-Any extra words after the command become review instructions: `/review https://github.com/o/r/pull/12 focus on concurrency in internal/queue`.
+Any extra words after the command become review instructions. Useful focuses for Python:
+
+```
+/review https://github.com/o/r/pull/12 focus on async cancellation and exception handling
+/review check for mutable default arguments, unclosed resources and blocking calls in async code
+```
 
 ### Reviewer count
 
@@ -49,6 +54,8 @@ Scales with diff size. Every reviewer runs on Grok, and Grok takes 2 parallel re
 | < 2000 | up to 4 |
 | < 5000 | up to 8 |
 | 5000+ | up to 16 |
+
+`uv.lock` churn counts as changed lines. Review lockfile-only updates separately, or tell the reviewer to skip `uv.lock`.
 
 ### What you get
 
@@ -64,27 +71,28 @@ Scales with diff size. Every reviewer runs on Grok, and Grok takes 2 parallel re
 
 ### What it does not do
 
-The reviewer reports only issues that are provable, actionable, unintentional and introduced by the patch. It ignores style, docs, nits and pre-existing bugs. It also traces every new type or message across module boundaries to the receiving code, which catches silently dropped events. A clean verdict is not a design or architecture review; that part stays with you.
+The reviewer reports only issues that are provable, actionable, unintentional and introduced by the patch. It ignores style, docs, nits and pre-existing bugs; leave style to ruff. It also traces every new type or message across module boundaries to the receiving code, which catches silently dropped events. A clean verdict is not a design or architecture review; that part stays with you.
 
 For security-sensitive changes also run `/security`, which uses the read-only `security-reviewer` agent (CWE-tagged findings with evidence).
 
 ## Your own PR
 
 1. **Self-review against main.** `/review` -> **1. Review against a base branch**, base `main`. Fix P0/P1: "fix findings 1 and 2", or by hand.
-2. **Commit.** `omp commit --dry-run`, then `omp commit`. Add `--no-changelog` if the repo keeps no changelog.
-3. **Push and open the PR.** Ask: "push this branch and open a PR against main with a summary, the reason, and the test commands you ran". omp uses `github` `pr_create` (head defaults to the current branch). Read the title and body before confirming. Manual equivalent:
+2. **Run the gate.** `uv run pytest -q`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run basedpyright`.
+3. **Commit.** `omp commit --dry-run`, then `omp commit`. Add `--no-changelog` if the repo keeps no changelog. Commit `uv.lock` with `pyproject.toml`.
+4. **Push and open the PR.** Ask: "push this branch and open a PR against main with a summary, the reason, and the test commands you ran". omp uses `github` `pr_create` (head defaults to the current branch). Read the title and body before confirming. Manual equivalent:
    ```
    git push -u origin HEAD
    gh pr create --fill --base main
    ```
-4. **Get CI green.** `/green` watches the GitHub Actions runs for HEAD, reads failing job logs, makes a minimal fix, pushes, and repeats until the latest HEAD is green. It pushes commits on its own; use it only on your own branch.
-5. **Address review comments.** "Read `pr://<N>` and address the review comments; list what you changed and what you disagree with." Review the diff, commit, push.
+5. **Get CI green.** `/green` watches the CI workflow runs for HEAD, reads failing job logs, makes a minimal fix, pushes, and repeats until the latest HEAD is green. Typical Python failures it handles: a test failing on another Python version in the matrix, ruff format drift, a missing dependency in `pyproject.toml`. It pushes commits on its own; use it only on your own branch.
+6. **Address review comments.** "Read `pr://<N>` and address the review comments; list what you changed and what you disagree with." Review the diff, commit, push.
 
 ## Someone else's PR
 
 1. **Remote review, no checkout.** `/review https://github.com/<owner>/<repo>/pull/<N>` plus any focus. omp reads the diff through `pr://<owner>/<repo>/<N>/diff`.
-2. **Run it locally when the diff is not enough.** Ask: "check out PR <N> and run the tests". `github` `pr_checkout` creates a dedicated worktree and never touches your working tree. Clean up later with `omp worktree list` and `omp worktree clear`.
-3. **Add your own judgement.** Design, naming, scope and product fit are not covered by the reviewer.
+2. **Run it locally when the diff is not enough.** Ask: "check out PR <N>, run uv sync and the test suite". `github` `pr_checkout` creates a dedicated worktree and never touches your working tree or your `.venv`. Clean up later with `omp worktree list` and `omp worktree clear`.
+3. **Add your own judgement.** Design, naming, API shape, new dependencies and scope are not covered by the reviewer.
 4. **Post the review yourself.** omp's findings stay local. Ask it to draft the comment text, edit it, then post:
    ```
    gh pr review <N> --comment --body-file review.md
@@ -98,7 +106,8 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
 | Step | omp | You |
 |---|---|---|
 | Find provable bugs in the diff | Yes | Spot-check P0/P1 |
-| Design, scope, naming | No | Yes |
+| Style and formatting | No (ruff) | Keep ruff in CI |
+| Design, scope, naming, new dependencies | No | Yes |
 | Security scan | `/security` | Decide what ships |
 | PR text | Drafts | Approve and edit |
 | CI fixes | `/green` on your branch | Watch pushes |
@@ -107,4 +116,4 @@ For security-sensitive changes also run `/security`, which uses the read-only `s
 
 ## Client repositories
 
-Review runs send the diff to xAI (Grok). Client code, for example T-Mobile CZ, needs PSA approval before omp reviews it.
+Reviews send the diff to the `xai-oauth` provider (Grok). Check the client's approval requirements before reviewing client code with omp.
