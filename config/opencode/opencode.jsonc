@@ -1,11 +1,24 @@
 {
-  "plugin": ["oh-my-openagent@latest"],
   "$schema": "https://opencode.ai/config.json",
+  "plugin": ["oh-my-openagent@latest"],
+
+  // Grok is the flat-rate bucket (SuperGrok oauth). Keep it as the session default.
   "model": "xai/grok-4.7",
-  "small_model": "opencode-go/glm-5.3-flash",
+  // Titles, summaries and other harness chores run on the cheapest capable model.
+  "small_model": "opencode-go/mimo-v2.6-flash",
   "enabled_providers": ["opencode-go", "xai"],
+
+  // Oversized tool output is written to the truncation directory and previewed.
+  // Nothing is lost; the agent can re-read the file on demand.
+  "tool_output": {
+    "max_lines": 500,
+    "max_bytes": 20480
+  },
+
   "compaction": {
     "auto": true,
-    "prune": true
+    "prune": true,
+    "tail_turns": 6,
+    "preserve_recent_tokens": 40000
   }
 }

@@ -2,31 +2,141 @@
 {
   "[opencode]": {
     "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/omo.schema.json",
-    "agents": {
-      "sisyphus": { "model": "xai/grok-4.7", "reasoning": "high" },
-      "oracle": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "librarian": { "model": "opencode-go/glm-5.3-flash" },
-      "explore": { "model": "opencode-go/glm-5.3-flash" },
-      "multimodal-looker": { "model": "xai/grok-4.7", "reasoning": "low" },
-      "prometheus": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "metis": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "momus": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "atlas": { "model": "xai/grok-4.7", "reasoning": "high" },
-      "sisyphus-junior": { "model": "xai/grok-4.7", "reasoning": "high" }
+
+    // Never let a rate limit silently promote a model. Overflow is handled by
+    // runtime_fallback below, with explicitly cheap targets only.
+    "model_fallback": false,
+    "telemetry": false,
+
+    // Claude Code compat assets are irrelevant to Go work and load into every prompt.
+    "claude_code": {
+      "mcp": false,
+      "skills": false,
+      "agents": false,
+      "plugins": false,
+      "commands": false
     },
+    "disabled_skills": ["data-scientist", "frontend", "visual-qa", "ultimate-browsing"],
+
+    // Grok is flat rate (SuperGrok oauth). opencode-go is a metered allowance.
+    // Overflow onto Go only on rate limits, only onto cheap models, then return.
+    "runtime_fallback": {
+      "enabled": true,
+      "retry_on_errors": [429, 500, 502, 503, 504],
+      "max_fallback_attempts": 2,
+      "cooldown_seconds": 300,
+      "notify_on_fallback": true,
+      "restore_primary_after_cooldown": true
+    },
+
+    "experimental": {
+      "preemptive_compaction": true,
+      "aggressive_truncation": true,
+      "truncate_all_tool_outputs": true,
+      "dynamic_context_pruning": {
+        "enabled": true,
+        "notification": "minimal",
+        "turn_protection": { "enabled": true, "turns": 2 },
+        "strategies": {
+          "deduplication": { "enabled": true },
+          "supersede_writes": { "enabled": true, "aggressive": true },
+          "purge_errors": { "enabled": true, "turns": 3 }
+        }
+      }
+    },
+
+    "agents": {
+      "sisyphus": {
+        "model": "xai/grok-4.7",
+        "reasoning": "high",
+        "textVerbosity": "low",
+        "ultrawork": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
+        "compaction": { "model": "opencode-go/gpt-5.6-luna" },
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "atlas": {
+        "model": "xai/grok-4.7",
+        "reasoning": "high",
+        "textVerbosity": "low",
+        "compaction": { "model": "opencode-go/gpt-5.6-luna" },
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "prometheus": {
+        "model": "xai/grok-4.7",
+        "reasoning": "high",
+        "compaction": { "model": "opencode-go/gpt-5.6-luna" },
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "oracle": {
+        "model": "xai/grok-4.7",
+        "reasoning": "xhigh",
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "momus": {
+        "model": "xai/grok-4.7",
+        "reasoning": "high",
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "metis": {
+        "model": "xai/grok-4.7",
+        "reasoning": "medium",
+        "fallback_models": ["opencode-go/gpt-5.6-luna", "opencode-go/minimax-m3"]
+      },
+      "multimodal-looker": {
+        "model": "xai/grok-4.7",
+        "reasoning": "low",
+        "fallback_models": ["opencode-go/mimo-v2-omni"]
+      },
+      "sisyphus-junior": {
+        "model": "opencode-go/gpt-5.6-luna",
+        "reasoning": "high",
+        "textVerbosity": "low",
+        "fallback_models": ["opencode-go/mimo-v2.6-flash", "opencode-go/deepseek-v4-flash"]
+      },
+      "explore": {
+        "model": "opencode-go/mimo-v2.6-flash",
+        "fallback_models": ["opencode-go/deepseek-v4-flash", "opencode-go/glm-5.3-flash"]
+      },
+      "librarian": {
+        "model": "opencode-go/mimo-v2.6-flash",
+        "fallback_models": ["opencode-go/deepseek-v4-flash", "opencode-go/glm-5.3-flash"]
+      }
+    },
+
     "categories": {
-      "visual-engineering": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
       "ultrabrain": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
       "deep": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "artistry": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "quick": { "model": "opencode-go/glm-5.3-flash" },
-      "unspecified-low": { "model": "opencode-go/glm-5.3-flash" },
-      "unspecified-high": { "model": "xai/grok-4.7", "reasoning": "xhigh" },
-      "writing": { "model": "opencode-go/glm-5.3-flash" }
+      "unspecified-high": { "model": "xai/grok-4.7", "reasoning": "high" },
+      "visual-engineering": { "model": "xai/grok-4.7", "reasoning": "high" },
+      "artistry": { "model": "xai/grok-4.7", "reasoning": "high" },
+      "quick": {
+        "model": "opencode-go/mimo-v2.6-flash",
+        "max_prompt_tokens": 60000
+      },
+      "unspecified-low": {
+        "model": "opencode-go/mimo-v2.6-flash",
+        "max_prompt_tokens": 60000
+      },
+      "writing": {
+        "model": "opencode-go/glm-5.3-flash",
+        "max_prompt_tokens": 60000
+      }
     },
+
     "background_task": {
-      "providerConcurrency": { "xai": 2 },
-      "modelConcurrency": { "xai/grok-4.7": 1 }
+      "providerConcurrency": { "xai": 2, "opencode-go": 4 },
+      "modelConcurrency": {
+        "xai/grok-4.7": 1,
+        "opencode-go/gpt-5.6-luna": 2,
+        "opencode-go/minimax-m3": 2,
+        "opencode-go/mimo-v2.6-flash": 4,
+        "opencode-go/glm-5.3-flash": 4
+      },
+      "circuitBreaker": {
+        "enabled": true,
+        "maxToolCalls": 200,
+        "consecutiveThreshold": 5
+      }
     }
   },
   "_migrations": ["2026-08-reasoning-unification"]
